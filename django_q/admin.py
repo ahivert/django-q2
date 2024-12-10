@@ -11,6 +11,7 @@ from django_q.models import Failure, OrmQ, Schedule, Success, Task
 from django_q.tasks import async_task
 
 
+@admin.display(description=_("Resubmit selected tasks to queue"))
 def resubmit_task(model_admin, request, queryset):
     """Submit selected tasks back to the queue."""
     for task in queryset:
@@ -26,9 +27,7 @@ def resubmit_task(model_admin, request, queryset):
             task.delete()
 
 
-resubmit_task.short_description = _("Resubmit selected tasks to queue")
-
-
+@admin.register(Success)
 class TaskAdmin(admin.ModelAdmin):
     """model admin for success tasks."""
 
@@ -61,6 +60,7 @@ class TaskAdmin(admin.ModelAdmin):
         return list(self.readonly_fields) + [field.name for field in obj._meta.fields]
 
 
+@admin.register(Failure)
 class FailAdmin(admin.ModelAdmin):
     """model admin for failed tasks."""
 
@@ -88,6 +88,7 @@ class FailAdmin(admin.ModelAdmin):
         return list(self.readonly_fields) + [field.name for field in obj._meta.fields]
 
 
+@admin.decorators.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
     """model admin for schedules"""
 
@@ -126,12 +127,11 @@ class ScheduleAdmin(admin.ModelAdmin):
         )
         return qs
 
+    @admin.display(boolean=True, description=_("success"))
     def get_success(self, obj):
         return obj.task_success
 
-    get_success.boolean = True
-    get_success.short_description = _("success")
-
+    @admin.display(description=_("last_run"))
     def get_last_run(self, obj):
         if obj.task_name is not None:
             if obj.task_success:
@@ -140,9 +140,6 @@ class ScheduleAdmin(admin.ModelAdmin):
                 url = reverse("admin:django_q_failure_change", args=(obj.task_id,))
             return format_html(f'<a href="{url}">[{obj.task_name}]</a>')
         return None
-
-    get_last_run.allow_tags = True
-    get_last_run.short_description = _("last_run")
 
 
 class QueueAdmin(admin.ModelAdmin):
@@ -177,10 +174,6 @@ class QueueAdmin(admin.ModelAdmin):
 
     list_filter = ("key",)
 
-
-admin.site.register(Schedule, ScheduleAdmin)
-admin.site.register(Success, TaskAdmin)
-admin.site.register(Failure, FailAdmin)
 
 if Conf.ORM or Conf.TESTING:
     admin.site.register(OrmQ, QueueAdmin)
